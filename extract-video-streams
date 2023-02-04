@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -euo pipefail
+
+# Extract front and rear video streams from Audi dashcam AVI file
+
+input_file="$1"
+filename="${input_file%.*}"
+ext="${input_file##*.}"
+
+# Extract video stream #1
+/Applications/ffmpeg -i "$input_file" -c copy -map 0:v:0 -map 0:a "$filename-front.$ext"
+
+# Extract video stream #2
+/Applications/ffmpeg -i "$input_file" -c copy -map 0:v:1 -map 0:a "$filename-rear.$ext"
