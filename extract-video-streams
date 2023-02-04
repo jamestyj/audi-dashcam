@@ -3,14 +3,34 @@
 # http://redsymbol.net/articles/unofficial-bash-strict-mode/
 set -euo pipefail
 
-# Extract front and rear video streams from Audi dashcam AVI file
+# Extract front and rear video streams from Audi dashcam
 
-input_file="$1"
-filename="${input_file%.*}"
-ext="${input_file##*.}"
+function convert_to_mp4 {
+  input="$1"
+  filename="${input%.*}"
+  ext="${input##*.}"
+
+  /Applications/ffmpeg -probesize 50M -analyzeduration 100M -i "$input" \
+    -map 0:0 -map 0:1 -c:a aac_at -ab 320k -strict -2 -async 1 -c:v libx264 -crf 20 \
+    -r 30 -s 1920x1080 -aspect 1920:1080 -pix_fmt yuv420p -movflags faststart \
+    -preset fast -partitions partb8x8+partp4x4+partp8x8+parti8x8 -b-pyramid 1 \
+    -weightb 1 -8x8dct 1 -fast-pskip 1 -direct-pred 1 -coder ac -trellis 1 \
+    -motion-est hex -subq 6 -me_range 16 -bf 3 -b_strategy 1 -flags +loop \
+    -sc_threshold 40 -keyint_min 30 -g 60 -qmin 3 -qmax 51 -qdiff 4 -sn -y \
+    "$filename.mp4"
+}
+
+input="$1"
+filename="${input%.*}"
+ext="${input##*.}"
+front_avi="$filename-front.$ext"
+rear_avi="$filename-rear.$ext"
 
 # Extract video stream #1
-/Applications/ffmpeg -i "$input_file" -c copy -map 0:v:0 -map 0:a "$filename-front.$ext"
+/Applications/ffmpeg -i "$input" -c copy -map 0:v:0 -map 0:a "$front_avi"
 
 # Extract video stream #2
-/Applications/ffmpeg -i "$input_file" -c copy -map 0:v:1 -map 0:a "$filename-rear.$ext"
+/Applications/ffmpeg -i "$input" -c copy -map 0:v:1 -map 0:a "$rear_avi"
+
+convert_to_mp4 "$front_avi"
+convert_to_mp4 "$rear_avi"
