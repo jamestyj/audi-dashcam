@@ -3,16 +3,25 @@
 # http://redsymbol.net/articles/unofficial-bash-strict-mode/
 set -euo pipefail
 
-# Extract front and rear video streams from Audi dashcam
+# Script that does the following:
+#   1. Extract front and rear video streams from Audi dashcam AVI file
+#   2. Convert AVI to MP4, so that it can be opened/processed in by most
+#      players and editors.
+#
+# Requires ffpmeg (https://ffmpeg.org/).
 
-function convert_to_mp4 {
+# Convert to YouTube mp4 format. Output:
+#   - Video: H264 1920x1080 30FPS CRF 20
+#   - Audio: AAC Stereo 44100HZ 1411KB/S
+function convert_to_mp4() {
   input="$1"
   filename="${input%.*}"
   ext="${input##*.}"
 
-  /Applications/ffmpeg -probesize 50M -analyzeduration 100M -i "$input" \
-    -map 0:0 -map 0:1 -c:a aac_at -ab 320k -strict -2 -async 1 -c:v libx264 -crf 20 \
-    -r 30 -s 1920x1080 -aspect 1920:1080 -pix_fmt yuv420p -movflags faststart \
+  $ffmpeg -i "$input" \
+    -probesize 50M -analyzeduration 100M \
+    -c:a aac_at -ab 320k -strict -2 -async 1 \
+    -c:v libx264 -crf 20 -r 30 -s 1920x1080 -aspect 1920:1080 -pix_fmt yuv420p -movflags faststart \
     -preset fast -partitions partb8x8+partp4x4+partp8x8+parti8x8 -b-pyramid 1 \
     -weightb 1 -8x8dct 1 -fast-pskip 1 -direct-pred 1 -coder ac -trellis 1 \
     -motion-est hex -subq 6 -me_range 16 -bf 3 -b_strategy 1 -flags +loop \
@@ -20,17 +29,26 @@ function convert_to_mp4 {
     "$filename.mp4"
 }
 
+if [[ "$#" -ne 1 ]]; then
+  SCRIPTNAME=$(basename "${BASH_SOURCE[0]}")
+  echo "Usage:"
+  echo "  ${SCRIPTNAME} <input.avi>"
+  exit 1
+fi
+
+ffmpeg=/Applications/ffmpeg
+
 input="$1"
 filename="${input%.*}"
 ext="${input##*.}"
 front_avi="$filename-front.$ext"
 rear_avi="$filename-rear.$ext"
 
-# Extract video stream #1
-/Applications/ffmpeg -i "$input" -c copy -map 0:v:0 -map 0:a "$front_avi"
-
-# Extract video stream #2
-/Applications/ffmpeg -i "$input" -c copy -map 0:v:1 -map 0:a "$rear_avi"
+# Extract video streams
+$ffmpeg -i "$input" -c copy -map 0:v:0 -map 0:a -y "$front_avi"
+$ffmpeg -i "$input" -c copy -map 0:v:1 -map 0:a -y "$rear_avi"
 
 convert_to_mp4 "$front_avi"
 convert_to_mp4 "$rear_avi"
+
+rm $front_avi $rear_avi
