@@ -10,6 +10,13 @@ set -euo pipefail
 #
 # Requires ffpmeg (https://ffmpeg.org/).
 
+FFMPEG_GLOBAL_OPTS="-hide_banner -loglevel quiet -stats -y"
+ffmpeg_bin=/Applications/ffmpeg
+
+function log() {
+  echo "`date "+%Y-%m-%d %H:%M:%S"` $*"
+}
+
 # Convert to YouTube mp4 format. Output:
 #   - Video: H264 1920x1080 30FPS CRF 20
 #   - Audio: AAC Stereo 44100HZ 1411KB/S
@@ -18,37 +25,42 @@ function convert_to_mp4() {
   filename="${input%.*}"
   ext="${input##*.}"
 
-  $ffmpeg -i "$input" \
+  log "Converting $input to $filename.mp4"
+  $ffmpeg_bin $FFMPEG_GLOBAL_OPTS -i "$input" \
     -probesize 50M -analyzeduration 100M \
     -c:a aac_at -ab 320k -strict -2 -async 1 \
     -c:v libx264 -crf 20 -r 30 -s 1920x1080 -aspect 1920:1080 -pix_fmt yuv420p -movflags faststart \
     -preset fast -partitions partb8x8+partp4x4+partp8x8+parti8x8 -b-pyramid 1 \
     -weightb 1 -8x8dct 1 -fast-pskip 1 -direct-pred 1 -coder ac -trellis 1 \
     -motion-est hex -subq 6 -me_range 16 -bf 3 -b_strategy 1 -flags +loop \
-    -sc_threshold 40 -keyint_min 30 -g 60 -qmin 3 -qmax 51 -qdiff 4 -sn -y \
+    -sc_threshold 40 -keyint_min 30 -g 60 -qmin 3 -qmax 51 -qdiff 4 -sn \
     "$filename.mp4"
 }
 
-if [[ "$#" -ne 1 ]]; then
+if [[ "$#" == "0" ]]; then
   SCRIPTNAME=$(basename "${BASH_SOURCE[0]}")
-  echo "Usage:"
-  echo "  ${SCRIPTNAME} <input.avi>"
+  echo "Usage: $SCRIPTNAME file [file2 ... fileN]"
   exit 1
 fi
 
-ffmpeg=/Applications/ffmpeg
+while (( "$#" )); do
+  input="$1"
+  filename="${input%.*}"
+  ext="${input##*.}"
+  front_avi="$filename-front.$ext"
+  rear_avi="$filename-rear.$ext"
 
-input="$1"
-filename="${input%.*}"
-ext="${input##*.}"
-front_avi="$filename-front.$ext"
-rear_avi="$filename-rear.$ext"
+  # Extract video streams
+  log "Extracting stream 1 from $input to $front_avi"
+  $ffmpeg_bin $FFMPEG_GLOBAL_OPTS -i "$input" -c copy -map 0:v:0 -map 0:a "$front_avi"
+  log "Extracting stream 2 from $input to $rear_avi"
+  $ffmpeg_bin $FFMPEG_GLOBAL_OPTS -i "$input" -c copy -map 0:v:1 -map 0:a "$rear_avi"
 
-# Extract video streams
-$ffmpeg -i "$input" -c copy -map 0:v:0 -map 0:a -y "$front_avi"
-$ffmpeg -i "$input" -c copy -map 0:v:1 -map 0:a -y "$rear_avi"
+  convert_to_mp4 "$front_avi"
+  convert_to_mp4 "$rear_avi"
 
-convert_to_mp4 "$front_avi"
-convert_to_mp4 "$rear_avi"
+  rm $front_avi $rear_avi
 
-rm $front_avi $rear_avi
+  log "Processing of $input complete!"
+  shift
+done
