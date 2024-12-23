@@ -10,11 +10,11 @@ set -euo pipefail
 #
 # Requires ffpmeg (https://ffmpeg.org/).
 
-FFMPEG_GLOBAL_OPTS="-hide_banner -loglevel quiet -stats -y"
-ffmpeg_bin=/Applications/ffmpeg
+FFMPEG_GLOBAL_OPTS="-hide_banner -stats -y"
+ffmpeg_bin="/cygdrive/c/ffmpeg-7.1-full_build/bin/ffmpeg.exe"
 
 function log() {
-  echo "`date "+%Y-%m-%d %H:%M:%S"` $*"
+  echo "** `date "+%Y-%m-%d %H:%M:%S"` $*"
 }
 
 # Convert to YouTube mp4 format. Output:
@@ -28,7 +28,7 @@ function convert_to_mp4() {
   log "Converting $input to $filename.mp4"
   $ffmpeg_bin $FFMPEG_GLOBAL_OPTS -i "$input" \
     -probesize 50M -analyzeduration 100M \
-    -c:a aac_at -ab 320k -strict -2 -async 1 \
+    -c:a aac -ab 320k -strict -2 -async 1 \
     -c:v libx264 -crf 20 -r 30 -s 1920x1080 -aspect 1920:1080 -pix_fmt yuv420p -movflags faststart \
     -preset fast -partitions partb8x8+partp4x4+partp8x8+parti8x8 -b-pyramid 1 \
     -weightb 1 -8x8dct 1 -fast-pskip 1 -direct-pred 1 -coder ac -trellis 1 \
