@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# TODO Use GPU
+
 # http://redsymbol.net/articles/unofficial-bash-strict-mode/
 set -euo pipefail
 
@@ -10,11 +12,11 @@ set -euo pipefail
 #
 # Requires ffpmeg (https://ffmpeg.org/).
 
-FFMPEG_GLOBAL_OPTS="-hide_banner -stats -y"
+FFMPEG_GLOBAL_OPTS="-hide_banner -loglevel quiet -stats -y"
 ffmpeg_bin="/cygdrive/c/ffmpeg-7.1-full_build/bin/ffmpeg.exe"
 
 function log() {
-  echo "** `date "+%Y-%m-%d %H:%M:%S"` $*"
+  echo "`date "+%Y-%m-%d %H:%M:%S"` $*"
 }
 
 # Convert to YouTube mp4 format. Output:
